@@ -1,8 +1,9 @@
-import 'package:fertilityshare/splashscreen.dart';
+
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized(); // Added this line
   runApp(const MyApp());
 }
 
@@ -20,7 +21,7 @@ class MyApp extends StatelessWidget {
       //  useMaterial3: true,
       ),
      // home: const MyHomePage(title: 'Flutter Demo Home Page'),
-      home: splashscreen(),
+      home: const Homepage(), // Corrected this line
     );
   }
 }
@@ -35,21 +36,52 @@ class Homepage extends StatefulWidget {
 
 class _HomepageState extends State<Homepage> {
 
-  late WebViewController controller;
+  late WebViewController _controller;
+  bool _isLoadingPage = true; // Added for loading state
 
   @override
   void initState() {
-    controller = WebViewController()
+    super.initState();
+    print("[WebViewLoading] initState: _isLoadingPage initial: $_isLoadingPage");
+
+    _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(
         NavigationDelegate(
           onProgress: (int progress) {
             // Update loading bar.
           },
-          onPageStarted: (String url) {},
-          onPageFinished: (String url) {},
-          onHttpError: (HttpResponseError error) {},
-          onWebResourceError: (WebResourceError error) {},
+          onPageStarted: (String url) {
+            print("[WebViewLoading] onPageStarted: url - $url");
+            if (mounted) { // Check if the widget is still in the tree
+              setState(() {
+                _isLoadingPage = true;
+                print("[WebViewLoading] onPageStarted: setState -> _isLoadingPage: $_isLoadingPage");
+              });
+            }
+          },
+          onPageFinished: (String url) {
+            print("[WebViewLoading] onPageFinished: url - $url");
+            if (mounted) { // Check if the widget is still in the tree
+              setState(() {
+                _isLoadingPage = false;
+                print("[WebViewLoading] onPageFinished: setState -> _isLoadingPage: $_isLoadingPage");
+              });
+            }
+          },
+          onHttpError: (HttpResponseError error) {
+            print("[WebViewLoading] onHttpError: ${error.toString()}");
+          },
+          onWebResourceError: (WebResourceError error) {
+            print("[WebViewLoading] onWebResourceError: ${error.toString()}");
+            // You might want to set _isLoadingPage = false here too,
+            // and potentially show an error message.
+            if (mounted) {
+              setState(() {
+                _isLoadingPage = false; 
+              });
+            }
+          },
           onNavigationRequest: (NavigationRequest request) {
             if (request.url.startsWith('https://www.youtube.com/')) {
               return NavigationDecision.prevent;
@@ -57,31 +89,37 @@ class _HomepageState extends State<Homepage> {
             return NavigationDecision.navigate;
           },
         ),
-      )
-      ..loadRequest(Uri.parse('https://community.fertilityshare.com/'));
-    super.initState();
+      );
+    print("[WebViewLoading] initState: Before loadRequest. _isLoadingPage: $_isLoadingPage");
+    _controller.loadRequest(Uri.parse('https://community.fertilityshare.com/'));
+    print("[WebViewLoading] initState: After loadRequest. _isLoadingPage: $_isLoadingPage");
   }
 
   @override
   Widget build(BuildContext context) {
+    print("[WebViewLoading] build: _isLoadingPage is: $_isLoadingPage");
     return WillPopScope(
         onWillPop: ()async{
-
-          var isLastPage = await controller.canGoBack();
-
-          if(isLastPage){
-            controller.goBack();
-            return false;
+          var canGoBack = await _controller.canGoBack();
+          if(canGoBack){
+            _controller.goBack();
+            return false; // Prevent default back button behavior
           }
-
-          return true;
+          return true; // Allow default back button behavior (exit app)
         },
         child: SafeArea(
-        child: Scaffold(
-     // appBar: AppBar(title: const Text('Flutter Simple Example')),
-      body: WebViewWidget(controller: controller),
-        ),
+          child: Scaffold(
+            body: Stack(
+              children: <Widget>[
+                WebViewWidget(controller: _controller),
+                if (_isLoadingPage)
+                  const Center(
+                    child: CircularProgressIndicator(),
+                  ),
+              ],
+            ),
+          ),
         ),
     );
-    }
+  }
 }
