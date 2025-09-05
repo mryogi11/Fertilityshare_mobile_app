@@ -15,4 +15,18 @@
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
+
+    <!-- Splash Screen Theme using androidx.core.splashscreen -->
+    <style name="Theme.App.Starting" parent="Theme.SplashScreen">
+        <!-- Set the splash screen background to white -->
+        <item name="windowSplashScreenBackground">#FFFFFF</item>
+
+        <!-- Set the animated icon to display on the splash screen -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/avd_logo_animation</item>
+        <!-- Set the animation duration (optional, the AVD itself has a duration) -->
+        <item name="windowSplashScreenAnimationDuration">2000</item> <!-- e.g., 2 seconds -->
+
+        <!-- Set the theme to be applied after the splash screen is dismissed -->
+        <item name="postSplashScreenTheme">@style/NormalTheme</item>
+    </style>
 </resources>
