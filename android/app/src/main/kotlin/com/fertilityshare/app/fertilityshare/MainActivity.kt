@@ -9,6 +9,7 @@ class MainActivity: FlutterActivity() {
         // Handle the splash screen transition.
         installSplashScreen()
 
+
         super.onCreate(savedInstanceState)
     }
 }
