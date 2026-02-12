@@ -1,18 +1,16 @@
 plugins {
     id "com.android.application"
-    id "kotlin-android"
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    id "org.jetbrains.kotlin.android"
     id "dev.flutter.flutter-gradle-plugin"
 }
 
 android {
-    namespace = "com.fertilityshare.app.fertilityshare"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    namespace "com.fertilityshare.app.fertilityshare"
+    compileSdk 36
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
     }
 
     kotlinOptions {
@@ -20,24 +18,25 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.fertilityshare.app.fertilityshare"
-        minSdkVersion = flutter.minSdkVersion // Explicitly set to 21
-        targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        applicationId "com.fertilityshare.app.fertilityshare"
+        minSdk 24
+        targetSdk 35
+        versionCode flutter.versionCode
+        versionName flutter.versionName
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.debug
+            signingConfig signingConfigs.debug
         }
     }
 }
 
 flutter {
-    source = "../.."
+    source "../.."
 }
 
 dependencies {
-    implementation 'androidx.core:core-splashscreen:1.0.1'
+    implementation "androidx.core:core-ktx:1.17.0"
+    implementation "androidx.core:core-splashscreen:1.2.0"
 }

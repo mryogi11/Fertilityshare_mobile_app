@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -13,8 +14,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Fertilityshare',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primarySwatch: Colors.blue, // A common default
+        primarySwatch: Colors.blue,
         useMaterial3: true,
       ),
       home: const MyHomePage(),
@@ -41,33 +43,14 @@ class _MyHomePageState extends State<MyHomePage> {
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageStarted: (String url) {
-            if (mounted) {
-              setState(() {
-                _isLoadingPage = true;
-              });
-            }
+            if (mounted) setState(() => _isLoadingPage = true);
           },
           onPageFinished: (String url) {
-            if (mounted) {
-              setState(() {
-                _isLoadingPage = false;
-              });
-            }
+            if (mounted) setState(() => _isLoadingPage = false);
           },
           onWebResourceError: (WebResourceError error) {
-             if (mounted) {
-              setState(() {
-                _isLoadingPage = false; 
-              });
-            }
-            // Optional: Add more robust error handling or user feedback here
-            debugPrint('''
-              Page resource error:
-              code: ${error.errorCode}
-              description: ${error.description}
-              errorType: ${error.errorType}
-              isForMainFrame: ${error.isForMainFrame}
-            ''');
+            if (mounted) setState(() => _isLoadingPage = false);
+            debugPrint('Page error: ${error.description}');
           },
         ),
       )
@@ -77,14 +60,12 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea( 
+      body: SafeArea(
         child: Stack(
           children: [
             WebViewWidget(controller: _controller),
             if (_isLoadingPage)
-              const Center(
-                child: CircularProgressIndicator(),
-              ),
+              const Center(child: CircularProgressIndicator()),
           ],
         ),
       ),
