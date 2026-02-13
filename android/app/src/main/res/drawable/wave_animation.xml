@@ -1,0 +1,40 @@
+<animated-vector
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt">
+    <aapt:attr name="android:drawable">
+        <vector
+            android:width="108dp"
+            android:height="108dp"
+            android:viewportWidth="288"
+            android:viewportHeight="288">
+            <group android:name="wave_movement">
+                <path
+                    android:name="wave_path"
+                    android:pathData="M -288,288 L -288,180 C -144,130 -72,230 0,180 C 72,130 144,230 216,180 C 288,130 360,230 432,180 L 432,288 Z"
+                    android:fillColor="#FF4081"
+                    android:fillAlpha="0.3"/>
+            </group>
+        </vector>
+    </aapt:attr>
+    <target android:name="wave_movement">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator
+                    android:propertyName="translateX"
+                    android:duration="2000"
+                    android:valueFrom="0"
+                    android:valueTo="288"
+                    android:valueType="floatType"
+                    android:repeatCount="infinite"/>
+                <objectAnimator
+                    android:propertyName="translateY"
+                    android:duration="2000"
+                    android:valueFrom="0"
+                    android:valueTo="-20"
+                    android:valueType="floatType"
+                    android:repeatCount="infinite"
+                    android:repeatMode="reverse"/>
+            </set>
+        </aapt:attr>
+    </target>
+</animated-vector>

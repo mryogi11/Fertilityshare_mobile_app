@@ -1,32 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Theme applied to the Android Window while the process is starting when the OS's Dark Mode setting is off -->
     <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
-        <!-- Show a splash screen on the activity. Automatically removed when
-             the Flutter engine draws its first frame -->
         <item name="android:windowBackground">@drawable/splash_fade_animation</item>
     </style>
-    <!-- Theme applied to the Android Window as soon as the process has started.
-         This theme determines the color of the Android Window while your
-         Flutter UI initializes, as well as behind your Flutter UI while its
-         running.
 
-         This Theme is only used starting with V2 of Flutter's Android embedding. -->
-    <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
+    <style name="NormalTheme" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="android:windowBackground">?android:colorBackground</item>
+        <!-- Modern Transparent System Bars -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
     </style>
 
-    <!-- Splash Screen Theme using androidx.core.splashscreen -->
     <style name="Theme.App.Starting" parent="Theme.SplashScreen">
-        <!-- Set the splash screen background to white -->
         <item name="windowSplashScreenBackground">#FFFFFF</item>
-
-        <!-- Set the animated icon to display on the splash screen -->
-        <item name="windowSplashScreenAnimatedIcon">@drawable/avd_logo_animation</item>
-        <!-- Set the animation duration (optional, the AVD itself has a duration) -->
-        <item name="windowSplashScreenAnimationDuration">2000</item> <!-- e.g., 2 seconds -->
-
-        <!-- Set the theme to be applied after the splash screen is dismissed -->
+        <!-- Use static PNG logo with wave background for test purpose -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_logo_png</item>
+        <item name="windowSplashScreenAnimationDuration">200</item>
         <item name="postSplashScreenTheme">@style/NormalTheme</item>
     </style>
 </resources>

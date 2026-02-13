@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@android:color/white" android:alpha="128"/> <!-- 50% opacity for background -->
-    <item android:alpha="128"> <!-- 50% opacity for logo item -->
+    <item android:drawable="@android:color/white" android:alpha="128"/>
+    <item android:alpha="128">
         <bitmap
             android:gravity="fill_horizontal|center_vertical"
-            android:src="@drawable/fertilityshare" />
+            android:src="@drawable/fertilityshare"
+            android:tint="#000000" />
     </item>
 </layer-list>

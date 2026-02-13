@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Colored Wave Background (Static version for the icon area) -->
+    <item>
+        <vector
+            android:width="108dp"
+            android:height="108dp"
+            android:viewportWidth="108"
+            android:viewportHeight="108">
+            <path
+                android:fillColor="#FF4081"
+                android:fillAlpha="0.3"
+                android:pathData="M 0,108 L 0,85 C 20,75 40,95 60,75 C 80,55 100,75 108,65 L 108,108 Z" />
+        </vector>
+    </item>
+
+    <!-- Black PNG Logo with Insets to prevent circular clipping -->
+    <item
+        android:gravity="center"
+        android:left="24dp"
+        android:right="24dp"
+        android:top="24dp"
+        android:bottom="24dp">
+        <bitmap
+            android:src="@drawable/fertilityshare"
+            android:tint="#000000" />
+    </item>
+</layer-list>
