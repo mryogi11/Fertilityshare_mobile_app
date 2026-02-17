@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1042168740472",
+    "project_id": "fertilityshare-mobile",
+    "storage_bucket": "fertilityshare-mobile.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1042168740472:android:f16a9a078f175815ca0b8d",
+        "android_client_info": {
+          "package_name": "com.fertilityshare.app.fertilityshare"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyASD83Lk3I-rwZr5CSXDZ8R581oZuUqKWU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
