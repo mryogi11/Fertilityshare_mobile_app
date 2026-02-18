@@ -170,6 +170,7 @@ class _MyHomePageState extends State<MyHomePage> {
       alert: true,
       badge: true,
       sound: true,
+
     );
 
     if (kDebugMode) {
