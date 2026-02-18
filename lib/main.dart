@@ -5,6 +5,8 @@ import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_in_app_messaging/firebase_in_app_messaging.dart';
+import 'package:firebase_app_installations/firebase_app_installations.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
@@ -174,14 +176,22 @@ class _MyHomePageState extends State<MyHomePage> {
       print('User granted permission: ${settings.authorizationStatus}');
     }
 
-    // 2. Get token and save to Firestore
+    // 2. Get Installation ID for FIAM testing
+    try {
+      String installationId = await FirebaseInstallations.instance.getId();
+      if (kDebugMode) print("Firebase Installation ID (for FIAM test): $installationId");
+    } catch (e) {
+      if (kDebugMode) print("Error getting Installation ID: $e");
+    }
+
+    // 3. Get FCM token and save to Firestore
     String? token = await messaging.getToken();
     if (token != null) {
       if (kDebugMode) print("FCM Token: $token");
       await _saveTokenToFirestore(token);
     }
 
-    // 3. Handle foreground messages
+    // 4. Handle foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       RemoteNotification? notification = message.notification;
       AndroidNotification? android = message.notification?.android;
@@ -203,12 +213,12 @@ class _MyHomePageState extends State<MyHomePage> {
       }
     });
 
-    // 4. Handle notification taps (when app is in background but NOT closed)
+    // 5. Handle notification taps (when app is in background but NOT closed)
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       _handleNotificationClick(message);
     });
 
-    // 5. Handle notification taps (when app was CLOSED)
+    // 6. Handle notification taps (when app was CLOSED)
     RemoteMessage? initialMessage = await FirebaseMessaging.instance.getInitialMessage();
     if (initialMessage != null) {
       _handleNotificationClick(initialMessage);
