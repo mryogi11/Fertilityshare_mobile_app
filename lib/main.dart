@@ -6,6 +6,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 // Background message handler
 @pragma('vm:entry-point')
@@ -16,6 +17,18 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   }
 }
 
+// Local notifications plugin
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
+
+// Notification channel for Android
+const AndroidNotificationChannel channel = AndroidNotificationChannel(
+  'fertilityshare_notification_channel', // id
+  'High Importance Notifications', // title
+  description: 'This channel is used for important notifications.', // description
+  importance: Importance.max,
+);
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
@@ -25,7 +38,32 @@ void main() async {
   // Set background messaging handler
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
+  // Initialize local notifications
+  await _setupLocalNotifications();
+
   runApp(const MyApp());
+}
+
+Future<void> _setupLocalNotifications() async {
+  const AndroidInitializationSettings initializationSettingsAndroid =
+      AndroidInitializationSettings('@mipmap/launcher_icon');
+  
+  const InitializationSettings initializationSettings = InitializationSettings(
+    android: initializationSettingsAndroid,
+  );
+
+  await flutterLocalNotificationsPlugin.initialize(
+    initializationSettings,
+    onDidReceiveNotificationResponse: (NotificationResponse response) {
+      // Handle notification click
+    },
+  );
+
+  // Create the channel on Android
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()
+      ?.createNotificationChannel(channel);
 }
 
 class MyApp extends StatelessWidget {
@@ -125,32 +163,48 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<void> _setupFirebaseMessaging() async {
     FirebaseMessaging messaging = FirebaseMessaging.instance;
 
-    // 1. Request permissions
+    // 1. Request permissions for Android 13+
     NotificationSettings settings = await messaging.requestPermission(
       alert: true,
       badge: true,
       sound: true,
     );
 
-    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      // 2. Get token and save to Firestore
-      String? token = await messaging.getToken();
-      if (token != null) {
-        if (kDebugMode) print("FCM Token: $token");
-        await _saveTokenToFirestore(token);
-      }
+    if (kDebugMode) {
+      print('User granted permission: ${settings.authorizationStatus}');
+    }
+
+    // 2. Get token and save to Firestore
+    String? token = await messaging.getToken();
+    if (token != null) {
+      if (kDebugMode) print("FCM Token: $token");
+      await _saveTokenToFirestore(token);
     }
 
     // 3. Handle foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      if (message.notification != null) {
-        _showForegroundNotification(message.notification!);
+      RemoteNotification? notification = message.notification;
+      AndroidNotification? android = message.notification?.android;
+
+      if (notification != null && android != null) {
+        flutterLocalNotificationsPlugin.show(
+          notification.hashCode,
+          notification.title,
+          notification.body,
+          NotificationDetails(
+            android: AndroidNotificationDetails(
+              channel.id,
+              channel.name,
+              channelDescription: channel.description,
+              icon: '@mipmap/launcher_icon',
+            ),
+          ),
+        );
       }
     });
 
     // 4. Handle notification taps (when app is in background but NOT closed)
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      if (kDebugMode) print('A new onMessageOpenedApp event was published!');
       _handleNotificationClick(message);
     });
 
@@ -162,10 +216,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _handleNotificationClick(RemoteMessage message) {
-    // For now, just refresh the WebView or navigate to home
     _loadUrl();
-    
-    // Log the interaction
     MyApp.analytics.logEvent(
       name: 'notification_opened',
       parameters: {'message_id': message.messageId ?? ''},
@@ -183,20 +234,6 @@ class _MyHomePageState extends State<MyHomePage> {
     } catch (e) {
       if (kDebugMode) print("Error saving token: $e");
     }
-  }
-
-  void _showForegroundNotification(RemoteNotification notification) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text("${notification.title}: ${notification.body}"),
-        backgroundColor: const Color(0xFFFF4081),
-        action: SnackBarAction(
-          label: 'View',
-          textColor: Colors.white,
-          onPressed: _loadUrl,
-        ),
-      ),
-    );
   }
 
   void _loadUrl() {
