@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -9,6 +12,10 @@ import 'package:firebase_in_app_messaging/firebase_in_app_messaging.dart';
 import 'package:firebase_app_installations/firebase_app_installations.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
+// Stream for handling notification taps when the app is in the foreground
+final StreamController<String?> selectNotificationStream =
+StreamController<String?>.broadcast();
 
 // Background message handler
 @pragma('vm:entry-point')
@@ -57,7 +64,10 @@ Future<void> _setupLocalNotifications() async {
   await flutterLocalNotificationsPlugin.initialize(
     initializationSettings,
     onDidReceiveNotificationResponse: (NotificationResponse response) {
-      // Handle notification click
+      // When a user taps a foreground notification, add the payload (URL) to the stream
+      if (response.payload != null) {
+        selectNotificationStream.add(response.payload);
+      }
     },
   );
 
@@ -105,7 +115,12 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
 
-    _setupFirebaseMessaging();
+    // Listen for foreground notification taps
+    selectNotificationStream.stream.listen((String? url) {
+      if (url != null && mounted) {
+        _loadUrl(url: url);
+      }
+    });
 
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
@@ -129,6 +144,7 @@ class _MyHomePageState extends State<MyHomePage> {
             setState(() {
               _isLoadingPage = false;
             });
+
             MyApp.analytics.logEvent(
               name: 'page_loaded',
               parameters: {'url': url},
@@ -159,28 +175,43 @@ class _MyHomePageState extends State<MyHomePage> {
           .setMediaPlaybackRequiresUserGesture(false);
     }
 
+    _initializeAndLoad();
+  }
+
+  void _initializeAndLoad() async {
+    // 1. Request permissions and setup listeners
+    await _setupFirebaseMessaging();
+
+    // 2. Check if the app was opened from a terminated state via a notification
+    RemoteMessage? initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+    
+    if (initialMessage != null) {
+      final String? deepLink = initialMessage.data['url'];
+      if (deepLink != null) {
+        if (kDebugMode) print("Terminated state: Loading deep link: $deepLink");
+        _loadUrl(url: deepLink);
+        return; // Exit early as we've handled the initial load
+      }
+    }
+
+    // 3. Default load if no initial deep link was found
     _loadUrl();
   }
 
   Future<void> _setupFirebaseMessaging() async {
     FirebaseMessaging messaging = FirebaseMessaging.instance;
 
-    // 1. Request permissions for Android 13+
-    NotificationSettings settings = await messaging.requestPermission(
+    // 1. Request permissions
+    await messaging.requestPermission(
       alert: true,
       badge: true,
       sound: true,
-
     );
 
-    if (kDebugMode) {
-      print('User granted permission: ${settings.authorizationStatus}');
-    }
-
-    // 2. Get Installation ID for FIAM testing
+    // 2. Get Installation ID for FIAM testing (optional)
     try {
       String installationId = await FirebaseInstallations.instance.getId();
-      if (kDebugMode) print("Firebase Installation ID (for FIAM test): $installationId");
+      if (kDebugMode) print("Firebase Installation ID: $installationId");
     } catch (e) {
       if (kDebugMode) print("Error getting Installation ID: $e");
     }
@@ -196,6 +227,7 @@ class _MyHomePageState extends State<MyHomePage> {
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       RemoteNotification? notification = message.notification;
       AndroidNotification? android = message.notification?.android;
+      String? deepLink = message.data['url'];
 
       if (notification != null && android != null) {
         flutterLocalNotificationsPlugin.show(
@@ -210,6 +242,7 @@ class _MyHomePageState extends State<MyHomePage> {
               icon: '@mipmap/launcher_icon',
             ),
           ),
+          payload: deepLink,
         );
       }
     });
@@ -218,19 +251,19 @@ class _MyHomePageState extends State<MyHomePage> {
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       _handleNotificationClick(message);
     });
-
-    // 6. Handle notification taps (when app was CLOSED)
-    RemoteMessage? initialMessage = await FirebaseMessaging.instance.getInitialMessage();
-    if (initialMessage != null) {
-      _handleNotificationClick(initialMessage);
-    }
   }
 
   void _handleNotificationClick(RemoteMessage message) {
-    _loadUrl();
+    final String? deepLink = message.data['url'];
+    if (kDebugMode) print("Background/Foreground tap: Loading URL: $deepLink");
+    _loadUrl(url: deepLink);
+
     MyApp.analytics.logEvent(
       name: 'notification_opened',
-      parameters: {'message_id': message.messageId ?? ''},
+      parameters: {
+        'message_id': message.messageId ?? '',
+        'deep_link': deepLink ?? 'none',
+      },
     );
   }
 
@@ -247,38 +280,80 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  void _loadUrl() {
-    _controller.loadRequest(Uri.parse('https://community.fertilityshare.com/'));
+  void _loadUrl({String? url}) {
+    final String urlToLoad = url ?? 'https://community.fertilityshare.com/';
+    if (kDebugMode) {
+      print("Loading URL: $urlToLoad");
+    }
+    _controller.loadRequest(Uri.parse(urlToLoad));
+  }
+
+  Future<bool?> _showExitConfirmationDialog() {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Exit App'),
+        content: const Text('Do you want to exit the app?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('No'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Yes'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    selectNotificationStream.close();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: Stack(
-          children: [
-            WebViewWidget(controller: _controller),
-            if (_hasError)
-              Container(
-                color: Colors.white,
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.wifi_off, size: 64, color: Colors.grey),
-                      const SizedBox(height: 16),
-                      const Text('Offline or Loading Error', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 8),
-                      ElevatedButton(onPressed: _loadUrl, child: const Text('Try Again')),
-                    ],
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, Object? result) async {
+        if (didPop) return;
+        
+        if (await _controller.canGoBack()) {
+          _controller.goBack();
+        } else {
+          final bool shouldExit = await _showExitConfirmationDialog() ?? false;
+          if (shouldExit && context.mounted) {
+            SystemNavigator.pop();
+          }
+        }
+      },
+      child: Scaffold(
+        body: SafeArea(
+          child: Stack(
+            children: [
+              WebViewWidget(controller: _controller),
+              if (_hasError)
+                Container(
+                  color: Colors.white,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.wifi_off, size: 64, color: Colors.grey),
+                        const SizedBox(height: 16),
+                        const Text('Offline or Loading Error',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        ElevatedButton(onPressed: _loadUrl, child: const Text('Try Again')),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            if (_isLoadingPage && !_hasError)
-              const Center(
-                child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF4081))),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
