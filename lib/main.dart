@@ -12,6 +12,7 @@ import 'package:firebase_in_app_messaging/firebase_in_app_messaging.dart';
 import 'package:firebase_app_installations/firebase_app_installations.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:quick_actions/quick_actions.dart';
 
 // Stream for handling notification taps when the app is in the foreground
 final StreamController<String?> selectNotificationStream =
@@ -28,7 +29,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 // Local notifications plugin
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-FlutterLocalNotificationsPlugin();
+    FlutterLocalNotificationsPlugin();
 
 // Notification channel for Android
 const AndroidNotificationChannel channel = AndroidNotificationChannel(
@@ -55,7 +56,7 @@ void main() async {
 
 Future<void> _setupLocalNotifications() async {
   const AndroidInitializationSettings initializationSettingsAndroid =
-  AndroidInitializationSettings('@mipmap/launcher_icon');
+      AndroidInitializationSettings('@mipmap/launcher_icon');
 
   const InitializationSettings initializationSettings = InitializationSettings(
     android: initializationSettingsAndroid,
@@ -64,17 +65,15 @@ Future<void> _setupLocalNotifications() async {
   await flutterLocalNotificationsPlugin.initialize(
     initializationSettings,
     onDidReceiveNotificationResponse: (NotificationResponse response) {
-      // When a user taps a foreground notification, add the payload (URL) to the stream
       if (response.payload != null) {
         selectNotificationStream.add(response.payload);
       }
     },
   );
 
-  // Create the channel on Android
   await flutterLocalNotificationsPlugin
       .resolvePlatformSpecificImplementation<
-      AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin>()
       ?.createNotificationChannel(channel);
 }
 
@@ -176,54 +175,77 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     _initializeAndLoad();
+    _setupQuickActions(); // Initialize Quick Actions
+  }
+
+  void _setupQuickActions() {
+    const QuickActions quickActions = QuickActions();
+    quickActions.initialize((String shortcutType) {
+      switch (shortcutType) {
+        case 'action_preferences':
+          _loadUrl(url: 'https://community.fertilityshare.com/my/preferences');
+          break;
+        case 'action_profile':
+          _loadUrl(url: 'https://community.fertilityshare.com/my/activity');
+          break;
+        case 'action_messages':
+          _loadUrl(url: 'https://community.fertilityshare.com/my/messages');
+          break;
+        case 'action_bookmarks':
+          _loadUrl(url: 'https://community.fertilityshare.com/my/bookmarks');
+          break;
+        case 'action_chat':
+          _loadUrl(url: 'https://community.fertilityshare.com/chat');
+          break;
+        case 'action_invite':
+          _loadUrl(url: 'https://community.fertilityshare.com/new-invite');
+          break;
+      }
+    });
+
+    quickActions.setShortcutItems(<ShortcutItem>[
+      const ShortcutItem(type: 'action_profile', localizedTitle: 'Profile', icon: 'fertilityshare'),
+      const ShortcutItem(type: 'action_messages', localizedTitle: 'Messages', icon: 'fertilityshare'),
+      const ShortcutItem(type: 'action_chat', localizedTitle: 'Chat', icon: 'fertilityshare'),
+      const ShortcutItem(type: 'action_bookmarks', localizedTitle: 'Bookmarks', icon: 'fertilityshare'),
+      const ShortcutItem(type: 'action_preferences', localizedTitle: 'Preferences', icon: 'fertilityshare'),
+      const ShortcutItem(type: 'action_invite', localizedTitle: 'Invite', icon: 'fertilityshare'),
+    ]);
   }
 
   void _initializeAndLoad() async {
-    // 1. Request permissions and setup listeners
-    await _setupFirebaseMessaging();
-
-    // 2. Check if the app was opened from a terminated state via a notification
+    // 1. Check if the app was opened from a terminated state via a notification (fast)
     RemoteMessage? initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+    String? deepLink;
     
     if (initialMessage != null) {
-      final String? deepLink = initialMessage.data['url'];
-      if (deepLink != null) {
-        if (kDebugMode) print("Terminated state: Loading deep link: $deepLink");
-        _loadUrl(url: deepLink);
-        return; // Exit early as we've handled the initial load
-      }
+      deepLink = initialMessage.data['url'];
     }
 
-    // 3. Default load if no initial deep link was found
-    _loadUrl();
+    // 2. Load the URL immediately (either deep link or home page)
+    _loadUrl(url: deepLink);
+
+    // 3. Setup Firebase Messaging in the background without blocking the load
+    _setupFirebaseMessaging();
   }
 
   Future<void> _setupFirebaseMessaging() async {
     FirebaseMessaging messaging = FirebaseMessaging.instance;
 
-    // 1. Request permissions
+    // Request permissions (non-blocking for the rest of the app)
     await messaging.requestPermission(
       alert: true,
       badge: true,
       sound: true,
     );
 
-    // 2. Get Installation ID for FIAM testing (optional)
-    try {
-      String installationId = await FirebaseInstallations.instance.getId();
-      if (kDebugMode) print("Firebase Installation ID: $installationId");
-    } catch (e) {
-      if (kDebugMode) print("Error getting Installation ID: $e");
-    }
-
-    // 3. Get FCM token and save to Firestore
+    // Get FCM token and save to Firestore
     String? token = await messaging.getToken();
     if (token != null) {
-      if (kDebugMode) print("FCM Token: $token");
       await _saveTokenToFirestore(token);
     }
 
-    // 4. Handle foreground messages
+    // Handle foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       RemoteNotification? notification = message.notification;
       AndroidNotification? android = message.notification?.android;
@@ -247,7 +269,7 @@ class _MyHomePageState extends State<MyHomePage> {
       }
     });
 
-    // 5. Handle notification taps (when app is in background but NOT closed)
+    // Handle notification taps (background)
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       _handleNotificationClick(message);
     });
@@ -255,7 +277,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _handleNotificationClick(RemoteMessage message) {
     final String? deepLink = message.data['url'];
-    if (kDebugMode) print("Background/Foreground tap: Loading URL: $deepLink");
     _loadUrl(url: deepLink);
 
     MyApp.analytics.logEvent(
@@ -334,7 +355,19 @@ class _MyHomePageState extends State<MyHomePage> {
         body: SafeArea(
           child: Stack(
             children: [
-              WebViewWidget(controller: _controller),
+              RefreshIndicator(
+                color: const Color(0xFFFF4081),
+                onRefresh: () async {
+                  await _controller.reload();
+                },
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Container(
+                    height: MediaQuery.of(context).size.height,
+                    child: WebViewWidget(controller: _controller),
+                  ),
+                ),
+              ),
               if (_hasError)
                 Container(
                   color: Colors.white,
@@ -347,10 +380,15 @@ class _MyHomePageState extends State<MyHomePage> {
                         const Text('Offline or Loading Error',
                             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 8),
-                        ElevatedButton(onPressed: _loadUrl, child: const Text('Try Again')),
+                        ElevatedButton(onPressed: () => _loadUrl(), child: const Text('Try Again')),
                       ],
                     ),
                   ),
+                ),
+              if (_isLoadingPage && !_hasError)
+                const Center(
+                  child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF4081))),
                 ),
             ],
           ),
