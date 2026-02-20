@@ -13,6 +13,7 @@ This document serves as a reference for the specific, working configuration of t
 | **Target SDK** | `35` | `android/app/build.gradle` |
 | **Min SDK** | `24` | `android/app/build.gradle` |
 
+
 ## Critical Dependencies (pubspec.yaml)
 
 To prevent Dart compilation errors and ensure compatibility with AGP 9.0.1, use these exact or higher versions:
